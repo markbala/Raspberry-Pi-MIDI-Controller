@@ -140,7 +140,7 @@ def main():
 # Defaults to the second MIDI device in the list for operation
 # if using USB MIDI, change to "> 0" and  "discovered_devices[0]" below
             print(discovered_devices)
-            if discovered_devices > 1:
+            if len(discovered_devices) > 1:
                   port = mido.open_output(discovered_devices[1])
                   print("Success! Connected to ", port)
                   blink_all(5)
