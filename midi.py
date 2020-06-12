@@ -33,7 +33,10 @@
 # Use pip / apt-get to install the brilliant "mido" library by Ole Martin Bjorndalen
 
 ###### General setup and initialisation ######################################
-import mido, time, RPi.GPIO as GPIO
+import mido, time, sys, RPi.GPIO as GPIO
+from tendo import singleton
+
+me = singleton.SingleInstance() # Ensures a single instance is running only
 
 # Maps LED and Footswitch to respective GPIO pins
 # (Refer to Pi pinout and fill in respective GPIO BCM numbers)
@@ -104,9 +107,8 @@ def pairing_sequence():
 
 # Error sequence, right side LEDs flash continuously
 def error_sequence():
-    while True:
-        blink_led(bot_right_led,1)
-        blink_led(top_right_led,1)
+    blink_led(bot_right_led,1)
+    blink_led(top_right_led,1)
 
 # Toggle LED status, arg to select LED
 def led_toggle(led_name):
@@ -126,36 +128,29 @@ def main():
     led_off(bot_left_led)
     time.sleep(1)
 
-# Pairing sequence
+    # Pairing sequence
     while True:
-        try:
-            discovered_devices = mido.get_output_names()
-            discovered_devices = [x.encode("utf-8") for x in discovered_devices]
-            discovered_devices = [x.split(":",1)[1] for x in discovered_devices]
-            discovered_devices = [x.rsplit(" ", 1)[0] for x in discovered_devices]
+        discovered_devices = None
+        discovered_devices = mido.get_output_names()
+        discovered_devices = [x.encode("utf-8") for x in discovered_devices]
+        discovered_devices = [x.split(":",1)[1] for x in discovered_devices]
+        discovered_devices = [x.rsplit(" ", 1)[0] for x in discovered_devices]
 
-# Lists all available MIDI devices
-# USB MIDI is always detected as the first device
-#Program starts when a second (presumably your) MIDI device is detected
-# Defaults to the second MIDI device in the list for operation
-# if using USB MIDI, change to "> 0" and  "discovered_devices[0]" below
-            print(discovered_devices)
-            if len(discovered_devices) > 1:
-                  port = mido.open_output(discovered_devices[1])
-                  print("Success! Connected to ", port)
-                  blink_all(5)
-                  break
-            else:
-                  print("not in list")
-                  pairing_sequence()
+        # USB MIDI is always detected as the first device
+        # Program starts when a second (presumably your) MIDI device is detected
+        # Defaults to the second MIDI device in the list for operation
+        # if using USB MIDI, change to "> 0" and  "discovered_devices[0]" below
+        print(discovered_devices)
+        if len(discovered_devices) > 1:
+              port = mido.open_output(discovered_devices[1])
+              print("Success! Connected to ", port)
+              blink_all(5)
+              break
+        else:
+              print("not in list")
+              pairing_sequence()
 
-        except Exception as e:
-            print(e)
-            for i in range(0,5):
-                 error_sequence()
-            continue
-
-# Operating sequence
+    # Operating sequence
     while True:
         if GPIO.input(top_left_switch) == GPIO.LOW:
             print("Top left button pressed!")
@@ -183,9 +178,12 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except:
+    except Exception as e:
+        print(e)
+        for i in range(0,5):
+             error_sequence()
         GPIO.cleanup()
+        print("No devices were connected. Script exiting and restarting.")
         print("GPIO clean up complete. Exiting...")
-        time.sleep(2)
-        exit()
+        sys.exit(1)
 ##############################################################################
