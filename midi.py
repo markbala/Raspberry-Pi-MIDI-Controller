@@ -78,20 +78,20 @@ def blink_all(no_of_blinks):
         GPIO.output(top_right_led,GPIO.HIGH)
         GPIO.output(bot_left_led,GPIO.HIGH)
         GPIO.output(bot_right_led,GPIO.HIGH)
-        time.sleep (0.2)
+        time.sleep (0.1)
         GPIO.output(top_left_led,GPIO.LOW)
         GPIO.output(top_right_led,GPIO.LOW)
         GPIO.output(bot_left_led,GPIO.LOW)
         GPIO.output(bot_right_led,GPIO.LOW)
-        time.sleep(0.2)
+        time.sleep(0.1)
 
 # Blink specific LED, args to select LED and number of blinks
 def blink_led(led_name,no_of_blinks):
     for i in range(0,no_of_blinks):
         GPIO.output(led_name, GPIO.HIGH)
-        time.sleep(0.2)
+        time.sleep(0.1)
         GPIO.output(led_name, GPIO.LOW)
-        time.sleep(0.2)
+        time.sleep(0.1)
 
 # LED on, arg to select LED
 def led_on(led_name):
@@ -154,15 +154,15 @@ def switch_pressed(switch):
             short_press(switch)
             print('Short press: {}'.format(switch_attributes[switch]["name"]))
             short_press_once  +=1  #prevent repeat short presses
-            time.sleep(0.3)
+            time.sleep(0.1)
 
         elif difference > long_push:
             long_press(switch)
             print('Long press: {}'.format(switch_attributes[switch]["name"]))
-            time.sleep(0.3)
+            time.sleep(0.1)
             while GPIO.input(switch) == GPIO.LOW:
                 pass
-            time.sleep(0.3)
+            time.sleep(0.05)
             break
 ##############################################################################
 
