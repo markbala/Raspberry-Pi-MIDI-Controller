@@ -36,7 +36,7 @@
 import mido, time, sys, RPi.GPIO as GPIO
 from tendo import singleton
 
-me = singleton.SingleInstance() # Ensures a single instance is running only
+#me = singleton.SingleInstance() # Ensures a single instance is running only
 
 # Maps LED and Footswitch to respective GPIO pins
 # (Refer to Pi pinout and fill in respective GPIO BCM numbers)
@@ -51,6 +51,9 @@ bot_left_switch = 5
 bot_right_switch = 13
 top_left_switch = 20
 top_right_switch = 16
+
+switch_list = [bot_left_switch, bot_right_switch, top_left_switch, top_right_switch]
+switch_attributes = {bot_left_switch: {"name" : "Bottom Left", "short_press": {"CC" : 5,"value" : 127}, "long_press": {"CC": 5, "value": 127}, "led": bot_left_led} , bot_right_switch: {"name" : "Bottom Right", "short_press":{"CC" : 4, "value" : 127}, "long_press": {"CC": 4, "value" : 127}, "led": bot_right_led}, top_left_switch: {"name" : "Top Left", "short_press":{"CC": 53, "value": 127}, "long_press": {"CC": 1, "value": 127}, "led": top_left_led}, top_right_switch: {"name" : "Top Right", "short_press": {"CC" : 52, "value" : 127}, "long_press":{"CC" : 52, "value" : 127}, "led": top_right_led}}
 
 # Adopts GPIO numbering instead of board numbering
 GPIO.setmode(GPIO.BCM)
@@ -118,19 +121,54 @@ def led_toggle(led_name):
         led_on(led_name)
     else:
         led_off(led_name)
+
+def start_up_led_sequence():
+    blink_led(top_left_led, 4)
+    blink_led(top_right_led, 4)
 ##############################################################################
 
-###### Main ##################################################################
-def main():
-    # Bottom left LED glows for 3 secs to signal start of script
-    led_on(bot_left_led)
-    time.sleep(3)
-    led_off(bot_left_led)
-    time.sleep(1)
+###### Button Press ##########################################################
+def short_press(switch):
+    # action
+    port.send(mido.Message("control_change",control=switch_attributes[switch]["short_press"]["CC"],value=switch_attributes[switch]["short_press"]["value"]))
+    blink_led(switch_attributes[switch]["led"],1)
 
-    # Pairing sequence
+
+def long_press(switch):
+    # action
+    port.send(mido.Message("control_change",control=switch_attributes[switch]["long_press"]["CC"],value=switch_attributes[switch]["short_press"]["value"]))
+    blink_led(switch_attributes[switch]["led"],1)
+
+
+# Long and short press
+def switch_pressed(switch):
+    start_time = time.time() #time of first detection
+    long_push = 1 # number of seconds to be counted as a long push
+    difference = 0
+    short_press_once = 0
+    while GPIO.input(switch) == GPIO.LOW:
+        now_time = time.time()
+        difference = now_time - start_time # time switch is held
+
+        if difference < long_push and short_press_once == 0:
+            short_press(switch)
+            print('Short press: {}'.format(switch_attributes[switch]["name"]))
+            short_press_once  +=1  #prevent repeat short presses
+            time.sleep(0.3)
+
+        elif difference > long_push:
+            long_press(switch)
+            print('Long press: {}'.format(switch_attributes[switch]["name"]))
+            time.sleep(0.3)
+            while GPIO.input(switch) == GPIO.LOW:
+                pass
+            time.sleep(0.3)
+            break
+##############################################################################
+
+###### Pairing ###############################################################
+def pairing_sequence():
     while True:
-        discovered_devices = None
         discovered_devices = mido.get_output_names()
         discovered_devices = [x.encode("utf-8") for x in discovered_devices]
         discovered_devices = [x.split(":",1)[1] for x in discovered_devices]
@@ -142,6 +180,7 @@ def main():
         # if using USB MIDI, change to "> 0" and  "discovered_devices[0]" below
         print(discovered_devices)
         if len(discovered_devices) > 1:
+              global port
               port = mido.open_output(discovered_devices[1])
               print("Success! Connected to ", port)
               blink_all(5)
@@ -149,29 +188,19 @@ def main():
         else:
               print("not in list")
               pairing_sequence()
+##############################################################################
+
+###### Main ##################################################################
+def main():
+    start_up_led_sequence()
+    pairing_sequence()
 
     # Operating sequence
     while True:
-        if GPIO.input(top_left_switch) == GPIO.LOW:
-            print("Top left button pressed!")
-            port.send(mido.Message("control_change", control=6, value=127))
-            led_toggle(top_left_led)
-            time.sleep(0.3)
-        elif GPIO.input(top_right_switch) == GPIO.LOW:
-            print("Top right button pressed!")
-            port.send(mido.Message("control_change", control=7, value=127))
-            led_toggle(top_right_led)
-            time.sleep(0.3)
-        elif GPIO.input(bot_left_switch) == GPIO.LOW:
-            print("Bot left button pressed!")
-            port.send(mido.Message("control_change", control=8, value=127))
-            led_toggle(bot_left_led)
-            time.sleep(0.3)
-        elif GPIO.input(bot_right_switch) == GPIO.LOW:
-            print("Bot right button pressed!")
-            port.send(mido.Message("control_change", control=9, value=127))
-            led_toggle(bot_right_led)
-            time.sleep(0.3)
+        for switch in switch_list:
+            if GPIO.input(switch) == GPIO.LOW:
+                switch_pressed(switch)
+                #print("Back in main loop")
 ##############################################################################
 
 ##############################################################################
